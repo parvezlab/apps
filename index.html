@@ -211,6 +211,7 @@
       <div>
         <section class="panel" style="margin-bottom:20px">
           <h3>যোগ করা অ্যাপ</h3>
+          <p class="note" id="syncState" style="margin:-6px 0 10px" hidden></p>
           <div id="adminList"></div>
         </section>
         <section class="panel">
@@ -218,10 +219,11 @@
           <div class="tools">
             <button class="btn" id="exp">তালিকা এক্সপোর্ট</button>
             <button class="btn" id="imp">ইমপোর্ট</button>
+            <button class="btn" id="pushAll" hidden>সার্ভারে পাঠান</button>
             <button class="btn" id="copyCfg">কোড কপি করুন</button>
             <button class="btn dng" id="reset">ডিফল্টে ফেরান</button>
           </div>
-          <p class="note">এই তালিকা শুধু এই ব্রাউজারে সংরক্ষিত থাকে। অন্য ডিভাইসে একই তালিকা পেতে "কোড কপি করুন" দিয়ে কোডটি index.html-এর <code>DEFAULT_APPS</code>-এ বসান।</p>
+          <p class="note" id="bkNote">এই তালিকা শুধু এই ব্রাউজারে সংরক্ষিত থাকে। অন্য ডিভাইসে একই তালিকা পেতে "কোড কপি করুন" দিয়ে কোডটি index.html-এর <code>DEFAULT_APPS</code>-এ বসান।</p>
           <input type="file" id="file" accept="application/json" hidden>
         </section>
       </div>
@@ -248,6 +250,10 @@
 const BRAND = "Parvez Hub";
 /* উপরের ডান কোণে অ্যাডমিন আইকন দেখাবে কিনা (false দিলে শুধু #admin লিংকে ঢোকা যাবে) */
 const SHOW_ADMIN_ICON = true;
+/* সব ডিভাইসে একই তালিকা পেতে এখানে Google Apps Script ওয়েব অ্যাপের /exec লিংক দিন (Code.gs দেখুন)।
+   খালি রাখলে তালিকা শুধু প্রতিটি ব্রাউজারে আলাদা সংরক্ষিত হবে। */
+const API_URL = "https://script.google.com/macros/s/AKfycbzYC_QXxq1AjK1wx2trZwXm-I5_j-KgBZghjppH9FX5rN2Cjlh090tXmWIh8YpdtWcv/exec";
+
 /* সাইটের পাথে কয়টি অংশ বেস হিসেবে ধরা হবে। parvezlab.github.io/apps/ → 1,
    নিজস্ব ডোমেইনের রুটে (example.com/) রাখলে → 0। 404.html-এও একই মান দিন। */
 const PATH_SEGMENTS = 1;
@@ -269,8 +275,43 @@ const STORE = "hub.apps.v1", SESSION = "hub.admin";
 const COLORS = ["#0a4234","#1d3a5f","#5b2a4a","#3b4a54","#7a5a14","#0f5257","#6b3a22"];
 
 const load = () => { try { const a = JSON.parse(localStorage.getItem(STORE)); if (Array.isArray(a)) return a; } catch(e){} return DEFAULT_APPS.map(x=>({...x})); };
-const save = () => { try { localStorage.setItem(STORE, JSON.stringify(apps)); } catch(e){ toast("সংরক্ষণ করা যায়নি"); } };
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(apps)); } catch(e){ toast("সংরক্ষণ করা যায়নি"); } pushServer(); };
 let apps = load();
+
+/* ═════════════ সার্ভার সিঙ্ক (Google Sheet) ═════════════ */
+const cred = () => { try { return JSON.parse(sessionStorage.getItem("hub.cred")); } catch(e){ return null; } };
+async function apiFetch(url, init){
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 15000);
+  try { const r = await fetch(url, { ...init, signal:c.signal }); return await r.json(); } finally { clearTimeout(t); }
+}
+const apiGet = () => apiFetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "t=" + Date.now(), {});
+const apiPost = body => apiFetch(API_URL, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(body) });
+function setSync(t){ const el = $("syncState"); if (el){ el.hidden = !API_URL; el.textContent = t; } }
+
+async function syncFromServer(){
+  if (!API_URL) return false;
+  try {
+    const d = await apiGet();
+    if (d && d.ok && Array.isArray(d.apps)){
+      if (d.apps.length || d.init){ apps = d.apps; try { localStorage.setItem(STORE, JSON.stringify(apps)); } catch(e){} }
+      setSync(d.apps.length || d.init ? "সার্ভারের সাথে সংযুক্ত" : "সার্ভারে এখনো তালিকা নেই। \"সার্ভারে পাঠান\" চাপুন।");
+      return true;
+    }
+  } catch(e){}
+  setSync("সার্ভারে পৌঁছানো যায়নি। সংরক্ষিত তালিকা দেখাচ্ছে।");
+  return false;
+}
+async function pushServer(){
+  if (!API_URL) return true;
+  const c = cred(); if (!c) return false;
+  setSync("সার্ভারে সংরক্ষণ হচ্ছে…");
+  try {
+    const d = await apiPost({ action:"save", user:c.user, pass:c.pass, apps });
+    if (d && d.ok){ setSync("সার্ভারে সংরক্ষিত"); return true; }
+    setSync("সংরক্ষণ ব্যর্থ" + (d && d.error ? ": " + d.error : ""));
+  } catch(e){ setSync("সার্ভারে পৌঁছানো যায়নি"); }
+  toast("সার্ভারে সংরক্ষণ করা যায়নি"); return false;
+}
 
 const colorOf = s => { let h = 0; for (const c of s) h = (h*31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
 const initial = s => (Array.from((s||"?").trim())[0] || "?").toUpperCase();
@@ -392,7 +433,7 @@ $("search").oninput = renderHome;
 /* ═════════════ রাউটিং ═════════════ */
 function route(){
   if (isAdminHash()){
-    if (sessionStorage.getItem(SESSION) === "1"){ show("admin"); renderAdmin(); }
+    if (sessionStorage.getItem(SESSION) === "1" && (!API_URL || cred())){ show("admin"); renderAdmin(); if (API_URL) syncFromServer().then(renderAdmin); }
     else { show("login"); setTimeout(()=>$("lu").focus(),50); }
   } else if (!current) { show("home"); renderHome(); }
 }
@@ -407,20 +448,32 @@ function leaveAdmin(){ adminPath = false; history.replaceState({}, "", BASE); sh
 let fails = 0, lockUntil = 0;
 $("loginForm").onsubmit = async e => {
   e.preventDefault();
-  const err = $("lerr");
+  const err = $("lerr"), user = $("lu").value.trim(), pass = $("lp").value;
   if (Date.now() < lockUntil){ err.textContent = "অনেকবার ভুল হয়েছে। কিছুক্ষণ পরে চেষ্টা করুন।"; return; }
-  if (!(window.crypto && crypto.subtle)){ err.textContent = "নিরাপদ (https) সংযোগে খুলুন।"; return; }
-  const h = await sha($("lu").value.trim() + ":" + $("lp").value);
-  if (h === ADMIN_HASH){
+  let ok = false;
+  if (API_URL){
+    err.textContent = "যাচাই করা হচ্ছে…";
+    try {
+      const d = await apiPost({ action:"verify", user, pass });
+      ok = !!(d && d.ok);
+      if (!ok && d && d.error && d.error !== "auth"){ err.textContent = "সার্ভার ত্রুটি: " + d.error; return; }
+    } catch(x){ err.textContent = "সার্ভারে পৌঁছানো যায়নি। ইন্টারনেট সংযোগ দেখুন।"; return; }
+  } else {
+    if (!(window.crypto && crypto.subtle)){ err.textContent = "নিরাপদ (https) সংযোগে খুলুন।"; return; }
+    ok = (await sha(user + ":" + pass)) === ADMIN_HASH;
+  }
+  if (ok){
     fails = 0; err.textContent = ""; $("lp").value = "";
-    sessionStorage.setItem(SESSION, "1"); show("admin"); renderAdmin();
+    sessionStorage.setItem(SESSION, "1");
+    if (API_URL){ sessionStorage.setItem("hub.cred", JSON.stringify({ user, pass })); await syncFromServer(); }
+    show("admin"); renderAdmin();
   } else {
     fails++; err.textContent = "ইউজারনেম বা পাসওয়ার্ড সঠিক নয়।";
     if (fails >= 5){ lockUntil = Date.now() + 30000; fails = 0; err.textContent = "৩০ সেকেন্ড পরে আবার চেষ্টা করুন।"; }
   }
 };
 $("loginCancel").onclick = leaveAdmin;
-$("logout").onclick = () => { sessionStorage.removeItem(SESSION); leaveAdmin(); };
+$("logout").onclick = () => { sessionStorage.removeItem(SESSION); sessionStorage.removeItem("hub.cred"); leaveAdmin(); };
 $("toHome").onclick = leaveAdmin;
 
 /* ═════════════ অ্যাডমিন: তালিকা ও ফর্ম ═════════════ */
@@ -490,7 +543,7 @@ $("appForm").onsubmit = e => {
   const slug = slugify($("fSlug").value) || (before ? slugOf(before) : slugify(name)) || "app";
   if (slug === "admin"){ toast("\"admin\" নামটি সংরক্ষিত"); return; }
   if (apps.some(x => x.id !== editId && slugOf(x) === slug)){ toast("এই লিংকের নাম আগে থেকেই আছে"); return; }
-  if (icon.length > 150000){ toast("আইকন ছবিটি অনেক বড়"); return; }
+  if (icon.length > 45000){ toast("আইকন ছবিটি অনেক বড়"); return; }
   if (!/^https:\/\//i.test(url)){ toast("লিংক https:// দিয়ে শুরু হতে হবে"); return; }
   if (editId){
     const a = apps.find(x=>x.id===editId);
@@ -519,12 +572,13 @@ $("file").onchange = async e => {
     save(); resetForm(); renderAdmin(); toast("ইমপোর্ট হয়েছে");
   } catch(err){ toast("ফাইলটি সঠিক নয়"); }
 };
+$("pushAll").onclick = async () => { if (await pushServer()) toast("সার্ভারে পাঠানো হয়েছে"); };
 $("copyCfg").onclick = async () => {
   const code = "const DEFAULT_APPS = " + JSON.stringify(apps,null,2) + ";";
   try { await navigator.clipboard.writeText(code); toast("কোড কপি হয়েছে"); } catch(e){ prompt("কোডটি কপি করুন:", code); }
 };
 $("reset").onclick = () => { if (!confirm("তালিকা ডিফল্টে ফিরিয়ে নেবেন?")) return;
-  localStorage.removeItem(STORE); apps = load(); Object.values(frames).forEach(f=>f.el.remove()); for (const k in frames) delete frames[k];
+  apps = DEFAULT_APPS.map(x=>({...x})); save(); Object.values(frames).forEach(f=>f.el.remove()); for (const k in frames) delete frames[k];
   resetForm(); renderAdmin(); toast("ডিফল্টে ফেরানো হয়েছে"); };
 
 /* ═════════════ শুরু ═════════════ */
@@ -534,7 +588,13 @@ $("adminIcon").onclick = () => { location.hash = "admin"; };
 $("foot").textContent = FOOTER; document.title = BRAND;
 updPrev(); updHint();
 history.replaceState({}, "");
+if (API_URL){
+  $("pushAll").hidden = false; $("syncState").hidden = false;
+  $("bkNote").textContent = "তালিকা Google Sheet-এ সংরক্ষিত হয়, তাই সব ডিভাইসে একই দেখায়। কোনো কারণে সার্ভার খালি থাকলে \"সার্ভারে পাঠান\" চাপুন।";
+}
+const syncP = API_URL ? syncFromServer() : Promise.resolve(false);
 route();
+syncP.then(() => { if (!current && !$("home").hidden) renderHome(); });
 (function deepLink(){
   if (isAdminHash()) return;
   const h = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : "";
@@ -542,7 +602,9 @@ route();
   if (!want) return;
   const a = findBySlug(want);
   history.replaceState({}, "", BASE);
-  if (a) openApp(a.id, true); else toast("অ্যাপটি পাওয়া যায়নি");
+  if (a){ openApp(a.id, true); return; }
+  if (!API_URL){ toast("অ্যাপটি পাওয়া যায়নি"); return; }
+  syncP.then(() => { renderHome(); const b = findBySlug(want); if (b) openApp(b.id, true); else toast("অ্যাপটি পাওয়া যায়নি"); });
 })();
 </script>
 </body>
