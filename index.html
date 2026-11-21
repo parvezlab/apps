@@ -2,169 +2,442 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#031c15">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a4234">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>CoopSync</title>
+  <title>Parvez Hub</title>
 
-  <!-- ফন্ট পেছনে লোড হয়, স্প্ল্যাশ আঁকা আটকায় না -->
   <link rel="stylesheet" media="print" onload="this.media='all'"
-        href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,600;6..72,700&family=Hind+Siliguri:wght@500;600&family=Noto+Serif+Bengali:wght@700&display=swap">
+        href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600&display=swap">
 
   <style>
     :root{
-      --g:#0a4234; --gd:#052a20; --gk:#031c15;
-      --gold:#b08d3c; --gold-b:#c6a24d; --gold-l:#efe4c6;
+      --brand:#0a4234; --brand-d:#06291f; --line:#dde2df; --bg:#f3f5f4; --card:#fff;
+      --ink:#17201c; --mute:#68746e; --accent:#b08d3c; --danger:#a63a2b;
     }
     *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html,body{ width:100%; height:100%; overflow:hidden; background:var(--gk);
-      font-family:'Hind Siliguri','Noto Serif Bengali',system-ui,-apple-system,'Segoe UI',sans-serif; }
+    html,body{ height:100%; background:var(--bg); color:var(--ink);
+      font-family:'Hind Siliguri',system-ui,-apple-system,'Segoe UI',sans-serif; font-size:15px; line-height:1.5; }
+    body{ overflow:hidden; }
+    button,input,textarea{ font:inherit; color:inherit; }
+    button{ cursor:pointer; }
+    :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+    [hidden]{ display:none !important; }
 
-    /* ── App iframe ── */
-    #app-frame{ position:fixed; top:0; left:0; width:100vw; height:100vh; height:100dvh; border:none; display:block; background:#fff; opacity:0; transition:opacity .35s ease; }
-    #app-frame.visible{ opacity:1; }
+    /* ── সাধারণ স্ক্রিন ── */
+    .screen{ position:fixed; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:10; background:var(--bg); }
+    .bar{ position:sticky; top:0; z-index:5; background:var(--brand); color:#fff;
+      padding:env(safe-area-inset-top) max(20px,env(safe-area-inset-right)) 0 max(20px,env(safe-area-inset-left)); }
+    .bar-in{ max-width:1040px; margin:0 auto; height:58px; display:flex; align-items:center; gap:16px; }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:600; font-size:17px; letter-spacing:.2px; white-space:nowrap; }
+    .brand i{ width:26px; height:26px; border-radius:6px; background:var(--accent); color:var(--brand-d);
+      font-style:normal; font-weight:600; font-size:15px; display:grid; place-items:center; }
+    .grow{ flex:1; }
+    .bar input[type=search]{ width:min(280px,46vw); height:36px; padding:0 12px; border-radius:6px; border:1px solid rgba(255,255,255,.22);
+      background:rgba(255,255,255,.1); color:#fff; font-size:14px; }
+    .bar input::placeholder{ color:rgba(255,255,255,.6); }
+    .bar input:focus-visible{ outline-color:var(--accent); background:rgba(255,255,255,.16); }
+    .icon-btn{ flex:none; width:36px; height:36px; display:grid; place-items:center; border-radius:50%; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; }
+    .icon-btn:hover{ background:rgba(255,255,255,.12); }
+    .bar-btn{ height:36px; padding:0 14px; border-radius:6px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; font-size:14px; white-space:nowrap; }
+    .bar-btn:hover{ background:rgba(255,255,255,.1); }
 
-    /* ── Splash ── */
-    #loader{
-      position:fixed; inset:0; z-index:9999;
-      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; text-align:center;
-      padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      background:
-        radial-gradient(ellipse 55% 50% at 85% 0%, rgba(176,141,60,.22), transparent 70%),
-        radial-gradient(ellipse 60% 55% at 50% 38%, var(--g) 0%, var(--gd) 55%, var(--gk) 100%);
+    .page{ max-width:1040px; margin:0 auto; padding:22px max(20px,env(safe-area-inset-right)) max(30px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left)); }
+
+    /* ── অ্যাপ তালিকা ── */
+    .meta{ display:flex; justify-content:space-between; color:var(--mute); font-size:13px; padding:2px 2px 12px; }
+    .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+    .tile{ display:flex; align-items:center; gap:14px; width:100%; text-align:left; padding:14px 16px;
+      background:var(--card); border:1px solid var(--line); border-radius:8px; transition:border-color .12s, background .12s; }
+    .tile:hover{ border-color:var(--brand); }
+    .tile:active{ background:#eef2f0; }
+    .mono{ flex:none; width:44px; height:44px; border-radius:8px; display:grid; place-items:center; color:#fff; font-weight:600; font-size:19px; }
+    .tile .t{ min-width:0; flex:1; }
+    .tile .nm{ font-weight:600; font-size:15.5px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .tile .ds{ color:var(--mute); font-size:13px; line-height:1.35; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .live{ flex:none; width:8px; height:8px; border-radius:50%; background:#2f9e61; }
+    .empty{ padding:60px 20px; text-align:center; color:var(--mute); }
+    .foot{ padding:26px 2px 0; color:var(--mute); font-size:12.5px; }
+
+    /* ── অ্যাপ iframe ── */
+    .app-frame{ position:fixed; top:0; left:0; width:100vw; height:100vh; height:100dvh; border:0; display:none; background:#fff; z-index:20; }
+    .app-frame.active{ display:block; }
+    #homeBtn{ position:fixed; left:0; bottom:calc(96px + env(safe-area-inset-bottom)); z-index:30; display:none;
+      width:30px; height:44px; border:0; border-radius:0 8px 8px 0; background:var(--brand); color:#fff; font-size:17px; opacity:.88;
+      box-shadow:0 2px 8px rgba(0,0,0,.28); }
+    #homeBtn.show{ display:block; }
+
+    /* ── লোডিং ── */
+    #loader{ position:fixed; inset:0; z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center; background:var(--bg); text-align:center; padding:24px; }
+    #loader.show{ display:flex; }
+    #loader .mono{ width:64px; height:64px; font-size:28px; border-radius:12px; }
+    #loader .ln{ margin-top:16px; font-weight:600; font-size:18px; }
+    #loader .bar2{ margin-top:18px; width:160px; height:3px; border-radius:2px; background:var(--line); overflow:hidden; }
+    #loader .bar2 span{ display:block; width:40%; height:100%; background:var(--brand); animation:slide 1.2s ease-in-out infinite; }
+    @keyframes slide{ from{ transform:translateX(-110%); } to{ transform:translateX(280%); } }
+    #loader .st{ margin-top:12px; color:var(--mute); font-size:13px; min-height:20px; }
+    .row{ display:flex; gap:10px; margin-top:16px; }
+
+    /* ── বোতাম/ফর্ম ── */
+    .btn{ height:38px; padding:0 18px; border-radius:6px; border:1px solid var(--line); background:#fff; font-weight:500; font-size:14px; }
+    .btn:hover{ border-color:var(--brand); }
+    .btn.pri{ background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn.pri:hover{ background:var(--brand-d); }
+    .btn.dng{ color:var(--danger); }
+    .btn.sm{ height:30px; padding:0 10px; font-size:13px; }
+    .btn[hidden]{ display:none; }
+    .fld{ display:block; margin-bottom:14px; }
+    .fld span{ display:block; font-size:13px; font-weight:500; margin-bottom:5px; }
+    .fld input{ width:100%; height:40px; padding:0 12px; border:1px solid #c9d0cc; border-radius:6px; background:#fff; font-size:15px; }
+    .fld input:focus-visible{ outline-offset:0; border-color:var(--brand); }
+    .fld small{ display:block; margin-top:4px; color:var(--mute); font-size:12px; }
+
+    /* ── লগইন ── */
+    .login{ min-height:100%; display:grid; place-items:center; padding:24px; }
+    .login form{ width:100%; max-width:360px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:26px 24px 24px; }
+    .login h2{ font-size:18px; font-weight:600; margin-bottom:4px; }
+    .login p.s{ color:var(--mute); font-size:13px; margin-bottom:20px; }
+    .err{ min-height:20px; margin:-2px 0 10px; color:var(--danger); font-size:13px; }
+
+    /* ── অ্যাডমিন ── */
+    .admin{ display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+    .panel{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:20px; }
+    .panel h3{ font-size:15.5px; font-weight:600; margin-bottom:14px; }
+    .list-row{ display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid var(--line); }
+    .list-row:first-of-type{ border-top:0; }
+    .list-row .mono{ width:36px; height:36px; font-size:16px; border-radius:7px; }
+    .list-row .t{ flex:1; min-width:0; }
+    .list-row .nm{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .list-row .u{ color:var(--mute); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .acts{ display:flex; gap:6px; flex:none; }
+    .tools{ display:flex; flex-wrap:wrap; gap:8px; }
+    .note{ margin-top:12px; color:var(--mute); font-size:12.5px; }
+    #toast{ position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translate(-50%,20px); opacity:0; z-index:99999;
+      background:var(--ink); color:#fff; padding:10px 18px; border-radius:6px; font-size:14px; transition:.2s; pointer-events:none; }
+    #toast.on{ opacity:1; transform:translate(-50%,0); }
+
+    @media (max-width:820px){
+      .admin{ grid-template-columns:1fr; }
+      .acts .hide-s{ display:none; }
     }
-    #loader::before{
-      content:''; position:absolute; inset:0; pointer-events:none;
-      background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
-      background-size:56px 56px;
-      -webkit-mask-image:linear-gradient(180deg,#000 30%,transparent 100%); mask-image:linear-gradient(180deg,#000 30%,transparent 100%);
+    @media (max-width:520px){
+      .brand span{ display:none; }
+      .grid{ grid-template-columns:1fr; }
     }
-    #loader::after{
-      content:''; position:absolute; left:0; right:0; bottom:0; height:3px; pointer-events:none;
-      background:linear-gradient(90deg,transparent,var(--gold) 30%,var(--gold) 70%,transparent);
-    }
-    #loader.hide{ opacity:0; visibility:hidden; pointer-events:none; transition:opacity .5s ease, visibility .5s; }
-    #loader > *{ position:relative; z-index:1; }
-
-    .logo-wrapper{ width:100px; height:100px; position:relative; display:flex; justify-content:center; align-items:center; }
-    .logo-ring{ position:absolute; inset:0; border-radius:50%; border:2px solid rgba(239,228,198,.16); border-top-color:var(--gold-b); animation:spin 1.15s linear infinite; }
-    .logo-ring::after{ content:''; position:absolute; inset:9px; border-radius:50%; border:1px dashed rgba(239,228,198,.35); animation:spin 6s linear infinite reverse; }
-    .logo-core{ width:50px; height:50px; border-radius:10px; display:flex; justify-content:center; align-items:center; font-size:26px; color:var(--gold-l);
-      background:var(--gd); box-shadow:inset 0 0 0 1px var(--gold), 0 0 28px rgba(176,141,60,.35); animation:pulse 1.8s ease-in-out infinite; }
-    @keyframes spin{ to{ transform:rotate(360deg); } }
-    @keyframes pulse{ 50%{ transform:scale(1.08); } }
-
-    .loader-title{ margin-top:28px; color:#fff; font-family:'Newsreader','Noto Serif Bengali',serif; font-size:24px; font-weight:700; letter-spacing:.005em; }
-    .loader-sub{ margin-top:2px; color:rgba(239,228,198,.7); font-size:13px; font-weight:500; }
-
-    .progress-bar{ margin-top:20px; width:180px; height:2px; overflow:hidden; border-radius:2px; background:rgba(239,228,198,.15); }
-    .progress-bar span{ display:block; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--gold-b),transparent); animation:loading 1.3s ease-in-out infinite; }
-    @keyframes loading{ from{ transform:translateX(-120%); } to{ transform:translateX(320%); } }
-
-    .loader-status{ margin-top:16px; color:rgba(255,255,255,.65); font-size:13px; min-height:20px; max-width:280px; }
-
-    .retry-btn{ display:none; margin-top:18px; padding:11px 26px; border:none; border-radius:6px; cursor:pointer;
-      font-family:inherit; font-size:14px; font-weight:600; color:#1f1704;
-      background:linear-gradient(180deg,#c6a24d,var(--gold)); box-shadow:0 8px 22px rgba(176,141,60,.38); }
-    .retry-btn:hover{ background:linear-gradient(180deg,#d4b05a,#bd9a45); }
-    .retry-btn.show{ display:block; }
-    .retry-btn:focus-visible{ outline:2px solid var(--gold-l); outline-offset:3px; }
-
-    @media (prefers-reduced-motion:reduce){
-      .logo-ring,.logo-ring::after,.progress-bar span{ animation:none; }
-      .logo-core{ animation:pulse 2.4s ease-in-out infinite; }
-    }
+    @media (prefers-reduced-motion:reduce){ #loader .bar2 span{ animation:none; width:100%; } #toast{ transition:none; } }
   </style>
 </head>
-
 <body>
 
-  <div id="loader" role="status" aria-live="polite">
-    <div class="logo-wrapper">
-      <div class="logo-ring"></div>
-      <div class="logo-core">☘</div>
-    </div>
-    <div class="loader-title">CoopSync</div>
-    <div class="loader-sub">শুরু হচ্ছে… · Starting</div>
-    <div class="progress-bar"><span></span></div>
-    <div class="loader-status" id="loaderStatus">সংযোগ স্থাপন করা হচ্ছে…</div>
-    <button class="retry-btn" id="retryBtn">আবার চেষ্টা করুন · Try again</button>
+<!-- ═════ অ্যাপ তালিকা ═════ -->
+<div class="screen" id="home">
+  <header class="bar"><div class="bar-in">
+    <div class="brand"><i id="brandMark"></i><span id="brandName"></span></div>
+    <div class="grow"></div>
+    <input type="search" id="search" placeholder="অ্যাপ খুঁজুন" aria-label="অ্যাপ খুঁজুন">
+    <button class="icon-btn" id="adminIcon" aria-label="অ্যাডমিন লগইন" title="অ্যাডমিন লগইন" hidden>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </button>
+  </div></header>
+  <main class="page">
+    <div class="meta"><span id="count"></span><span id="openCount"></span></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden>কোনো অ্যাপ পাওয়া যায়নি।</div>
+    <div class="foot" id="foot"></div>
+  </main>
+</div>
+
+<!-- ═════ অ্যাডমিন লগইন ═════ -->
+<div class="screen" id="login" hidden>
+  <div class="login">
+    <form id="loginForm" autocomplete="off">
+      <h2>অ্যাডমিন লগইন</h2>
+      <p class="s">অ্যাপ তালিকা পরিচালনার জন্য সাইন ইন করুন।</p>
+      <label class="fld"><span>ইউজারনেম</span><input id="lu" type="text" autocapitalize="none" autocomplete="username" required></label>
+      <label class="fld"><span>পাসওয়ার্ড</span><input id="lp" type="password" autocomplete="current-password" required></label>
+      <div class="err" id="lerr" role="alert"></div>
+      <div class="row" style="margin:0">
+        <button class="btn pri" type="submit" style="flex:1">সাইন ইন</button>
+        <button class="btn" type="button" id="loginCancel">বাতিল</button>
+      </div>
+    </form>
   </div>
+</div>
 
-  <iframe id="app-frame"
-          src="https://script.google.com/macros/s/AKfycbzYC_QXxq1AjK1wx2trZwXm-I5_j-KgBZghjppH9FX5rN2Cjlh090tXmWIh8YpdtWcv/exec"
-          title="CoopSync Application" allow="clipboard-write"></iframe>
+<!-- ═════ অ্যাডমিন প্যানেল ═════ -->
+<div class="screen" id="admin" hidden>
+  <header class="bar"><div class="bar-in">
+    <div class="brand"><i>A</i><span>অ্যাডমিন প্যানেল</span></div>
+    <div class="grow"></div>
+    <button class="bar-btn" id="toHome">অ্যাপ তালিকা</button>
+    <button class="bar-btn" id="logout">সাইন আউট</button>
+  </div></header>
+  <main class="page">
+    <div class="admin">
+      <section class="panel">
+        <h3 id="formTitle">নতুন অ্যাপ যোগ করুন</h3>
+        <form id="appForm" autocomplete="off">
+          <label class="fld"><span>অ্যাপের নাম</span><input id="fName" required maxlength="40"></label>
+          <label class="fld"><span>সংক্ষিপ্ত বিবরণ</span><input id="fDesc" maxlength="70"></label>
+          <label class="fld"><span>অ্যাপ লিংক</span><input id="fUrl" type="url" required placeholder="https://script.google.com/macros/s/…/exec">
+            <small>ওয়েব অ্যাপ ডিপ্লয়মেন্টের /exec লিংক দিন।</small></label>
+          <div class="row" style="margin:0">
+            <button class="btn pri" type="submit" id="fSave">যোগ করুন</button>
+            <button class="btn" type="button" id="fCancel" hidden>বাতিল</button>
+          </div>
+        </form>
+      </section>
+      <div>
+        <section class="panel" style="margin-bottom:20px">
+          <h3>যোগ করা অ্যাপ</h3>
+          <div id="adminList"></div>
+        </section>
+        <section class="panel">
+          <h3>ব্যাকআপ</h3>
+          <div class="tools">
+            <button class="btn" id="exp">তালিকা এক্সপোর্ট</button>
+            <button class="btn" id="imp">ইমপোর্ট</button>
+            <button class="btn" id="copyCfg">কোড কপি করুন</button>
+            <button class="btn dng" id="reset">ডিফল্টে ফেরান</button>
+          </div>
+          <p class="note">এই তালিকা শুধু এই ব্রাউজারে সংরক্ষিত থাকে। অন্য ডিভাইসে একই তালিকা পেতে "কোড কপি করুন" দিয়ে কোডটি index.html-এর <code>DEFAULT_APPS</code>-এ বসান।</p>
+          <input type="file" id="file" accept="application/json" hidden>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
 
-  <script>
-    const frame = document.getElementById("app-frame");
-    const loader = document.getElementById("loader");
-    const statusText = document.getElementById("loaderStatus");
-    const retryButton = document.getElementById("retryBtn");
+<div id="frames"></div>
+<button id="homeBtn" aria-label="অ্যাপ তালিকায় ফিরুন">‹</button>
 
-    let isLoaded = false;
-    let messageTimer = null;
-    let slowTimer = null;
+<div id="loader" role="status" aria-live="polite">
+  <div class="mono" id="ldMono"></div>
+  <div class="ln" id="ldName"></div>
+  <div class="bar2"><span></span></div>
+  <div class="st" id="ldStatus"></div>
+  <div class="row">
+    <button class="btn pri" id="retryBtn" hidden>আবার চেষ্টা করুন</button>
+    <button class="btn" id="backBtn" hidden>ফিরে যান</button>
+  </div>
+</div>
+<div id="toast"></div>
 
-    /* এই বার্তাগুলো শুধু ব্যবহারকারীর অভিজ্ঞতার জন্য; আসল অগ্রগতি নয় */
-    const messages = [
-      "সংযোগ স্থাপন করা হচ্ছে…",
-      "অ্যাপ প্রস্তুত করা হচ্ছে…",
-      "প্রয়োজনীয় ফাইল লোড হচ্ছে…",
-      "প্রায় হয়ে গেছে…"
-    ];
+<script>
+/* ═════════════ কনফিগ ═════════════ */
+const BRAND = "Parvez Hub";
+/* উপরের ডান কোণে অ্যাডমিন আইকন দেখাবে কিনা (false দিলে শুধু #admin লিংকে ঢোকা যাবে) */
+const SHOW_ADMIN_ICON = true;
+const FOOTER = "প্রতিটি অ্যাপ নিজস্ব লগইন ব্যবহার করে।";
 
-    function startTimers() {
-      let i = 0;
-      clearInterval(messageTimer);
-      clearTimeout(slowTimer);
+/* ডিফল্ট অ্যাপ তালিকা (অ্যাডমিন থেকে বদলালে ব্রাউজারের তালিকা এর ওপরে প্রাধান্য পায়) */
+const DEFAULT_APPS = [
+  { id:"coopsync", name:"CoopSync", desc:"সমবায় ব্যবস্থাপনা",
+    url:"https://script.google.com/macros/s/AKfycbzYC_QXxq1AjK1wx2trZwXm-I5_j-KgBZghjppH9FX5rN2Cjlh090tXmWIh8YpdtWcv/exec" }
+];
 
-      messageTimer = setInterval(() => {
-        if (isLoaded) return;
-        i = (i + 1) % messages.length;
-        statusText.textContent = messages[i];
-      }, 1800);
+/* অ্যাডমিন লগইন: SHA-256( ইউজারনেম + ":" + পাসওয়ার্ড )
+   ডিফল্ট: admin / CoopSync@2026 — অবশ্যই বদলে নিন (নিচে দেখুন) */
+const ADMIN_HASH = "04f36a1fd1654992a3944833990999656e74aa6692559ef3e490d0e977ca226e";
 
-      /* ২০ সেকেন্ডের বেশি লাগলে ধীর সংযোগের বার্তা ও পুনরায় চেষ্টার বোতাম */
-      slowTimer = setTimeout(() => {
-        if (!isLoaded) {
-          statusText.textContent = "সংযোগ কিছুটা ধীর মনে হচ্ছে…";
-          retryButton.classList.add("show");
-        }
-      }, 20000);
-    }
+/* ═════════════ সহায়ক ═════════════ */
+const $ = id => document.getElementById(id);
+const STORE = "hub.apps.v1", SESSION = "hub.admin";
+const COLORS = ["#0a4234","#1d3a5f","#5b2a4a","#3b4a54","#7a5a14","#0f5257","#6b3a22"];
 
-    /* আসল লোড ইভেন্ট: iframe লোড হওয়ার সাথে সাথেই অ্যাপ দেখানো হয় */
-    frame.addEventListener("load", () => {
-      isLoaded = true;
-      clearTimeout(slowTimer);
-      clearInterval(messageTimer);
-      frame.classList.add("visible");
-      loader.classList.add("hide");
-    });
+const load = () => { try { const a = JSON.parse(localStorage.getItem(STORE)); if (Array.isArray(a)) return a; } catch(e){} return DEFAULT_APPS.map(x=>({...x})); };
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(apps)); } catch(e){ toast("সংরক্ষণ করা যায়নি"); } };
+let apps = load();
 
-    /* পুনরায় চেষ্টা: স্প্ল্যাশ আবার দেখিয়ে ক্যাশ এড়িয়ে লোড করা হয় */
-    retryButton.addEventListener("click", () => {
-      isLoaded = false;
-      retryButton.classList.remove("show");
-      statusText.textContent = "আবার সংযোগ করা হচ্ছে…";
-      frame.classList.remove("visible");
-      loader.classList.remove("hide");
+const colorOf = s => { let h = 0; for (const c of s) h = (h*31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
+const initial = s => (Array.from((s||"?").trim())[0] || "?").toUpperCase();
+function mono(app){ const d = document.createElement("div"); d.className="mono"; d.textContent=initial(app.name); d.style.background=colorOf(app.name); return d; }
+let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"),2200); }
+async function sha(s){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join(""); }
+const isAdminHash = () => /^#admin\/?$/i.test(location.hash) || /[?&]admin(=|&|$)/i.test(location.search);
 
-      const newURL = new URL(frame.src);
-      newURL.searchParams.set("refresh", Date.now());
-      frame.src = newURL.toString();
-      startTimers();
-    });
+/* ═════════════ স্ক্রিন ═════════════ */
+const screens = ["home","login","admin"];
+function show(name){ screens.forEach(s => $(s).hidden = s !== name); }
 
-    /* অরিয়েন্টেশন বদলালে উচ্চতা ঠিক রাখা */
-    window.addEventListener("resize", () => {
-      frame.style.height = window.innerHeight + "px";
-    });
+/* ═════════════ অ্যাপ তালিকা ═════════════ */
+const frames = {}; let current = null;
 
-    startTimers();
-  </script>
+function renderHome(){
+  const q = $("search").value.trim().toLowerCase();
+  const g = $("grid"); g.innerHTML = "";
+  const list = apps.filter(a => !q || (a.name+" "+(a.desc||"")).toLowerCase().includes(q));
+  list.forEach(a => {
+    const b = document.createElement("button"); b.className = "tile";
+    const t = document.createElement("div"); t.className = "t";
+    const n = document.createElement("div"); n.className = "nm"; n.textContent = a.name;
+    const d = document.createElement("div"); d.className = "ds"; d.textContent = a.desc || "";
+    t.append(n,d); b.append(mono(a),t);
+    if (frames[a.id]) { const l = document.createElement("span"); l.className="live"; l.title="চালু আছে"; b.append(l); }
+    b.onclick = () => openApp(a.id, true);
+    g.append(b);
+  });
+  $("empty").hidden = list.length > 0;
+  $("empty").textContent = apps.length ? "কোনো অ্যাপ পাওয়া যায়নি।" : "এখনো কোনো অ্যাপ যোগ করা হয়নি।";
+  $("count").textContent = apps.length + "টি অ্যাপ";
+  const live = Object.keys(frames).length;
+  $("openCount").textContent = live ? live + "টি চালু" : "";
+}
 
+/* ═════════════ লোডার ═════════════ */
+const MSGS = ["সংযোগ স্থাপন করা হচ্ছে…","অ্যাপ প্রস্তুত করা হচ্ছে…","প্রয়োজনীয় ফাইল লোড হচ্ছে…","প্রায় হয়ে গেছে…"];
+let mt, st;
+function startLoad(app){
+  const m = mono(app); $("ldMono").replaceWith(m); m.id = "ldMono";
+  $("ldName").textContent = app.name; $("loader").classList.add("show");
+  $("retryBtn").hidden = $("backBtn").hidden = true;
+  let i = 0; $("ldStatus").textContent = MSGS[0]; clearInterval(mt); clearTimeout(st);
+  mt = setInterval(()=>{ i=(i+1)%MSGS.length; $("ldStatus").textContent = MSGS[i]; },1800);
+  st = setTimeout(()=>{ $("ldStatus").textContent="সংযোগ কিছুটা ধীর মনে হচ্ছে…"; $("retryBtn").hidden = $("backBtn").hidden = false; },20000);
+}
+function endLoad(){ clearInterval(mt); clearTimeout(st); $("loader").classList.remove("show"); }
+
+/* ═════════════ অ্যাপ খোলা / হোমে ফেরা ═════════════ */
+function openApp(id, push){
+  const app = apps.find(a => a.id === id); if (!app) return;
+  current = id; $("home").hidden = true; $("homeBtn").classList.add("show");
+  Object.values(frames).forEach(f => f.el.classList.remove("active"));
+  let f = frames[id];
+  if (!f){
+    const el = document.createElement("iframe");
+    el.className = "app-frame"; el.title = app.name; el.allow = "clipboard-write";
+    f = frames[id] = { el, loaded:false };
+    el.addEventListener("load", () => { f.loaded = true; if (current === id) endLoad(); });
+    $("frames").append(el); el.src = app.url;
+  }
+  f.el.classList.add("active");
+  f.loaded ? endLoad() : startLoad(app);
+  if (push) history.pushState({ app:id }, "", location.pathname + location.search);
+}
+function goHome(){
+  current = null; endLoad();
+  Object.values(frames).forEach(f => f.el.classList.remove("active"));
+  $("homeBtn").classList.remove("show"); show("home"); renderHome();
+}
+$("homeBtn").onclick = () => history.back();
+$("backBtn").onclick = () => { const f = frames[current]; if (f && !f.loaded){ f.el.remove(); delete frames[current]; } history.back(); };
+$("retryBtn").onclick = () => {
+  const app = apps.find(a => a.id === current), f = frames[current]; if (!app || !f) return;
+  f.loaded = false; startLoad(app);
+  const u = new URL(app.url); u.searchParams.set("refresh", Date.now()); f.el.src = u.toString();
+};
+$("search").oninput = renderHome;
+
+/* ═════════════ রাউটিং ═════════════ */
+function route(){
+  if (isAdminHash()){
+    if (sessionStorage.getItem(SESSION) === "1"){ show("admin"); renderAdmin(); }
+    else { show("login"); setTimeout(()=>$("lu").focus(),50); }
+  } else if (!current) { show("home"); renderHome(); }
+}
+window.addEventListener("hashchange", () => { if (current) return; route(); });
+window.addEventListener("popstate", e => {
+  if (e.state && e.state.app) { openApp(e.state.app, false); }
+  else { goHome(); route(); }
+});
+function leaveAdmin(){ history.replaceState({}, "", location.pathname); show("home"); renderHome(); }
+
+/* ═════════════ লগইন ═════════════ */
+let fails = 0, lockUntil = 0;
+$("loginForm").onsubmit = async e => {
+  e.preventDefault();
+  const err = $("lerr");
+  if (Date.now() < lockUntil){ err.textContent = "অনেকবার ভুল হয়েছে। কিছুক্ষণ পরে চেষ্টা করুন।"; return; }
+  if (!(window.crypto && crypto.subtle)){ err.textContent = "নিরাপদ (https) সংযোগে খুলুন।"; return; }
+  const h = await sha($("lu").value.trim() + ":" + $("lp").value);
+  if (h === ADMIN_HASH){
+    fails = 0; err.textContent = ""; $("lp").value = "";
+    sessionStorage.setItem(SESSION, "1"); show("admin"); renderAdmin();
+  } else {
+    fails++; err.textContent = "ইউজারনেম বা পাসওয়ার্ড সঠিক নয়।";
+    if (fails >= 5){ lockUntil = Date.now() + 30000; fails = 0; err.textContent = "৩০ সেকেন্ড পরে আবার চেষ্টা করুন।"; }
+  }
+};
+$("loginCancel").onclick = leaveAdmin;
+$("logout").onclick = () => { sessionStorage.removeItem(SESSION); leaveAdmin(); };
+$("toHome").onclick = leaveAdmin;
+
+/* ═════════════ অ্যাডমিন: তালিকা ও ফর্ম ═════════════ */
+let editId = null;
+function renderAdmin(){
+  const box = $("adminList"); box.innerHTML = "";
+  if (!apps.length){ box.innerHTML = '<p class="note" style="margin:0">কোনো অ্যাপ নেই। বাঁ দিকের ফর্ম থেকে যোগ করুন।</p>'; return; }
+  apps.forEach((a,i) => {
+    const r = document.createElement("div"); r.className = "list-row";
+    const t = document.createElement("div"); t.className = "t";
+    const n = document.createElement("div"); n.className = "nm"; n.textContent = a.name;
+    const u = document.createElement("div"); u.className = "u"; u.textContent = a.url;
+    t.append(n,u);
+    const acts = document.createElement("div"); acts.className = "acts";
+    const mk = (txt, cls, fn, dis) => { const b = document.createElement("button"); b.className = "btn sm "+cls; b.textContent = txt; b.disabled = !!dis; if (dis) b.style.opacity=".4"; b.onclick = fn; return b; };
+    acts.append(
+      mk("↑","hide-s",()=>move(i,-1),i===0), mk("↓","hide-s",()=>move(i,1),i===apps.length-1),
+      mk("সম্পাদনা","",()=>startEdit(a.id)), mk("মুছুন","dng",()=>del(a.id))
+    );
+    r.append(mono(a),t,acts); box.append(r);
+  });
+}
+function move(i,d){ const j=i+d; if (j<0||j>=apps.length) return; [apps[i],apps[j]]=[apps[j],apps[i]]; save(); renderAdmin(); }
+function del(id){ const a = apps.find(x=>x.id===id); if (!a || !confirm(`"${a.name}" মুছে ফেলবেন?`)) return;
+  apps = apps.filter(x=>x.id!==id); if (frames[id]){ frames[id].el.remove(); delete frames[id]; } if (editId===id) resetForm(); save(); renderAdmin(); toast("মুছে ফেলা হয়েছে"); }
+function startEdit(id){ const a = apps.find(x=>x.id===id); if (!a) return; editId = id;
+  $("fName").value=a.name; $("fDesc").value=a.desc||""; $("fUrl").value=a.url;
+  $("formTitle").textContent="অ্যাপ সম্পাদনা"; $("fSave").textContent="সংরক্ষণ করুন"; $("fCancel").hidden=false; $("fName").focus(); window.scrollTo(0,0); $("admin").scrollTo(0,0); }
+function resetForm(){ editId=null; $("appForm").reset(); $("formTitle").textContent="নতুন অ্যাপ যোগ করুন"; $("fSave").textContent="যোগ করুন"; $("fCancel").hidden=true; }
+$("fCancel").onclick = resetForm;
+$("appForm").onsubmit = e => {
+  e.preventDefault();
+  const name = $("fName").value.trim(), desc = $("fDesc").value.trim(), url = $("fUrl").value.trim();
+  if (!/^https:\/\//i.test(url)){ toast("লিংক https:// দিয়ে শুরু হতে হবে"); return; }
+  if (editId){
+    const a = apps.find(x=>x.id===editId);
+    if (a.url !== url && frames[a.id]){ frames[a.id].el.remove(); delete frames[a.id]; }
+    Object.assign(a,{name,desc,url}); toast("সংরক্ষণ হয়েছে");
+  } else {
+    apps.push({ id:"app"+Date.now().toString(36), name, desc, url }); toast("অ্যাপ যোগ হয়েছে");
+  }
+  save(); resetForm(); renderAdmin();
+};
+
+/* ═════════════ অ্যাডমিন: ব্যাকআপ ═════════════ */
+$("exp").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(apps,null,2)],{type:"application/json"}));
+  a.download = "apps.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$("imp").onclick = () => $("file").click();
+$("file").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const arr = JSON.parse(await f.text());
+    if (!Array.isArray(arr) || !arr.every(x => x && x.name && /^https:\/\//i.test(x.url||""))) throw 0;
+    apps = arr.map((x,i)=>({ id:x.id||("app"+Date.now().toString(36)+i), name:String(x.name), desc:String(x.desc||""), url:x.url }));
+    Object.values(frames).forEach(f=>f.el.remove()); for (const k in frames) delete frames[k];
+    save(); resetForm(); renderAdmin(); toast("ইমপোর্ট হয়েছে");
+  } catch(err){ toast("ফাইলটি সঠিক নয়"); }
+};
+$("copyCfg").onclick = async () => {
+  const code = "const DEFAULT_APPS = " + JSON.stringify(apps,null,2) + ";";
+  try { await navigator.clipboard.writeText(code); toast("কোড কপি হয়েছে"); } catch(e){ prompt("কোডটি কপি করুন:", code); }
+};
+$("reset").onclick = () => { if (!confirm("তালিকা ডিফল্টে ফিরিয়ে নেবেন?")) return;
+  localStorage.removeItem(STORE); apps = load(); Object.values(frames).forEach(f=>f.el.remove()); for (const k in frames) delete frames[k];
+  resetForm(); renderAdmin(); toast("ডিফল্টে ফেরানো হয়েছে"); };
+
+/* ═════════════ শুরু ═════════════ */
+$("brandName").textContent = BRAND; $("brandMark").textContent = initial(BRAND);
+$("adminIcon").hidden = !SHOW_ADMIN_ICON;
+$("adminIcon").onclick = () => { location.hash = "admin"; };
+$("foot").textContent = FOOTER; document.title = BRAND;
+history.replaceState({}, "");
+route();
+</script>
 </body>
 </html>
