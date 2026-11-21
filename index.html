@@ -188,6 +188,8 @@
         <h3 id="formTitle">নতুন অ্যাপ যোগ করুন</h3>
         <form id="appForm" autocomplete="off">
           <label class="fld"><span>অ্যাপের নাম</span><input id="fName" required maxlength="40"></label>
+          <label class="fld"><span>লিংকের নাম <em style="font-weight:400;color:var(--mute);font-style:normal">(ঐচ্ছিক)</em></span><input id="fSlug" maxlength="30" autocapitalize="none" placeholder="খালি রাখলে অ্যাপের নাম থেকে হবে">
+            <small id="fSlugHint"></small></label>
           <label class="fld"><span>সংক্ষিপ্ত বিবরণ</span><input id="fDesc" maxlength="70"></label>
           <div class="fld"><span>আইকন <em style="font-weight:400;color:var(--mute);font-style:normal">(ঐচ্ছিক)</em></span>
             <div class="icon-row">
@@ -246,6 +248,9 @@
 const BRAND = "Parvez Hub";
 /* উপরের ডান কোণে অ্যাডমিন আইকন দেখাবে কিনা (false দিলে শুধু #admin লিংকে ঢোকা যাবে) */
 const SHOW_ADMIN_ICON = true;
+/* সাইটের পাথে কয়টি অংশ বেস হিসেবে ধরা হবে। parvezlab.github.io/apps/ → 1,
+   নিজস্ব ডোমেইনের রুটে (example.com/) রাখলে → 0। 404.html-এও একই মান দিন। */
+const PATH_SEGMENTS = 1;
 const FOOTER = "প্রতিটি অ্যাপ নিজস্ব লগইন ব্যবহার করে।";
 
 /* ডিফল্ট অ্যাপ তালিকা (অ্যাডমিন থেকে বদলালে ব্রাউজারের তালিকা এর ওপরে প্রাধান্য পায়) */
@@ -294,7 +299,24 @@ function mono(app, iconOverride){
 function shortUrl(u, n = 30){ const t = String(u).replace(/^https?:\/\//i,""); return t.length > n ? t.slice(0,n) + "…" : t; }
 let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"),2200); }
 async function sha(s){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join(""); }
-const isAdminHash = () => /^#admin\/?$/i.test(location.hash) || /[?&]admin(=|&|$)/i.test(location.search);
+const BASE = PATH_SEGMENTS ? "/" + location.pathname.split("/").slice(1, 1 + PATH_SEGMENTS).join("/") + "/" : "/";
+const slugify = t => String(t||"").trim().toLowerCase().replace(/[^a-z0-9\u0980-\u09ff]+/g,"-").replace(/^-+|-+$/g,"");
+const slugOf = a => slugify(a.slug) || slugify(a.name) || a.id;
+const appUrl = a => BASE + encodeURIComponent(slugOf(a));
+const findBySlug = t => { const k = slugify(t); return apps.find(a => slugOf(a) === k || a.id.toLowerCase() === String(t).toLowerCase()); };
+
+/* 404.html থেকে আসা ?/CoopSync রূপটি আবার সুন্দর পাথে ফেরানো */
+(function(){
+  const q = location.search;
+  if (q.startsWith("?/")){
+    const parts = q.slice(2).split("&");
+    const path = parts[0].replace(/~and~/g,"&"), rest = parts.slice(1).join("&").replace(/~and~/g,"&");
+    history.replaceState(null, "", BASE + path + (rest ? "?" + rest : "") + location.hash);
+  }
+})();
+const relPath = (() => { try { return decodeURIComponent(location.pathname.slice(BASE.length)).replace(/index\.html$/i,"").replace(/\/+$/,""); } catch(e){ return ""; } })();
+let adminPath = /^admin$/i.test(relPath);
+const isAdminHash = () => adminPath || /^#admin\/?$/i.test(location.hash) || /[?&]admin(=|&|$)/i.test(location.search);
 
 /* ═════════════ স্ক্রিন ═════════════ */
 const screens = ["home","login","admin"];
@@ -352,7 +374,7 @@ function openApp(id, push){
   }
   f.el.classList.add("active");
   f.loaded ? endLoad() : startLoad(app);
-  if (push) history.pushState({ app:id }, "", location.pathname + location.search);
+  if (push) history.pushState({ app:id }, "", appUrl(app));
 }
 function goHome(){
   current = null; endLoad();
@@ -379,7 +401,7 @@ window.addEventListener("popstate", e => {
   if (e.state && e.state.app) { openApp(e.state.app, false); }
   else { goHome(); route(); }
 });
-function leaveAdmin(){ history.replaceState({}, "", location.pathname); show("home"); renderHome(); }
+function leaveAdmin(){ adminPath = false; history.replaceState({}, "", BASE); show("home"); renderHome(); }
 
 /* ═════════════ লগইন ═════════════ */
 let fails = 0, lockUntil = 0;
@@ -416,18 +438,26 @@ function renderAdmin(){
     const mk = (txt, cls, fn, dis) => { const b = document.createElement("button"); b.className = "btn sm "+cls; b.textContent = txt; b.disabled = !!dis; if (dis) b.style.opacity=".4"; b.onclick = fn; return b; };
     acts.append(
       mk("↑","",()=>move(i,-1),i===0), mk("↓","",()=>move(i,1),i===apps.length-1),
-      mk("Edit","",()=>startEdit(a.id)), mk("Delete","dng",()=>del(a.id))
+      mk("Link","",()=>copyLink(a)), mk("Edit","",()=>startEdit(a.id)), mk("Delete","dng",()=>del(a.id))
     );
     r.append(mono(a),t,acts); box.append(r);
   });
 }
+async function copyLink(a){ const u = location.origin + appUrl(a);
+  try { await navigator.clipboard.writeText(u); toast("লিংক কপি হয়েছে"); } catch(e){ prompt("লিংকটি কপি করুন:", u); } }
 function move(i,d){ const j=i+d; if (j<0||j>=apps.length) return; [apps[i],apps[j]]=[apps[j],apps[i]]; save(); renderAdmin(); }
 function del(id){ const a = apps.find(x=>x.id===id); if (!a || !confirm(`"${a.name}" মুছে ফেলবেন?`)) return;
   apps = apps.filter(x=>x.id!==id); if (frames[id]){ frames[id].el.remove(); delete frames[id]; } if (editId===id) resetForm(); save(); renderAdmin(); toast("মুছে ফেলা হয়েছে"); }
 function startEdit(id){ const a = apps.find(x=>x.id===id); if (!a) return; editId = id;
-  $("fName").value=a.name; $("fDesc").value=a.desc||""; $("fUrl").value=a.url; $("fIcon").value=a.icon||""; updPrev();
+  $("fName").value=a.name; $("fDesc").value=a.desc||""; $("fUrl").value=a.url; $("fIcon").value=a.icon||""; $("fSlug").value=a.slug||""; updPrev(); updHint();
   $("formTitle").textContent="অ্যাপ সম্পাদনা"; $("fSave").textContent="সংরক্ষণ করুন"; $("fCancel").hidden=false; $("fName").focus(); window.scrollTo(0,0); $("admin").scrollTo(0,0); }
-function resetForm(){ editId=null; $("appForm").reset(); updPrev(); $("formTitle").textContent="নতুন অ্যাপ যোগ করুন"; $("fSave").textContent="যোগ করুন"; $("fCancel").hidden=true; }
+function resetForm(){ editId=null; $("appForm").reset(); updPrev(); updHint(); $("formTitle").textContent="নতুন অ্যাপ যোগ করুন"; $("fSave").textContent="যোগ করুন"; $("fCancel").hidden=true; }
+function updHint(){
+  const k = slugify($("fSlug").value) || slugify($("fName").value) || "…";
+  $("fSlugHint").textContent = location.host + BASE + k;
+}
+$("fSlug").addEventListener("input", updHint);
+$("fName").addEventListener("input", updHint);
 function updPrev(){
   const p = mono({ name: $("fName").value || "?" }, $("fIcon").value); p.id = "iconPrev";
   $("iconPrev").replaceWith(p);
@@ -456,14 +486,18 @@ $("fCancel").onclick = resetForm;
 $("appForm").onsubmit = e => {
   e.preventDefault();
   const name = $("fName").value.trim(), desc = $("fDesc").value.trim(), url = $("fUrl").value.trim(), icon = $("fIcon").value.trim();
+  const before = editId ? apps.find(x=>x.id===editId) : null;
+  const slug = slugify($("fSlug").value) || (before ? slugOf(before) : slugify(name)) || "app";
+  if (slug === "admin"){ toast("\"admin\" নামটি সংরক্ষিত"); return; }
+  if (apps.some(x => x.id !== editId && slugOf(x) === slug)){ toast("এই লিংকের নাম আগে থেকেই আছে"); return; }
   if (icon.length > 150000){ toast("আইকন ছবিটি অনেক বড়"); return; }
   if (!/^https:\/\//i.test(url)){ toast("লিংক https:// দিয়ে শুরু হতে হবে"); return; }
   if (editId){
     const a = apps.find(x=>x.id===editId);
     if (a.url !== url && frames[a.id]){ frames[a.id].el.remove(); delete frames[a.id]; }
-    Object.assign(a,{name,desc,url,icon}); toast("সংরক্ষণ হয়েছে");
+    Object.assign(a,{name,desc,url,icon,slug}); toast("সংরক্ষণ হয়েছে");
   } else {
-    apps.push({ id:"app"+Date.now().toString(36), name, desc, url, icon }); toast("অ্যাপ যোগ হয়েছে");
+    apps.push({ id:"app"+Date.now().toString(36), name, desc, url, icon, slug }); toast("অ্যাপ যোগ হয়েছে");
   }
   save(); resetForm(); renderAdmin();
 };
@@ -480,7 +514,7 @@ $("file").onchange = async e => {
   try {
     const arr = JSON.parse(await f.text());
     if (!Array.isArray(arr) || !arr.every(x => x && x.name && /^https:\/\//i.test(x.url||""))) throw 0;
-    apps = arr.map((x,i)=>({ id:x.id||("app"+Date.now().toString(36)+i), name:String(x.name), desc:String(x.desc||""), url:x.url, icon:String(x.icon||"") }));
+    apps = arr.map((x,i)=>({ id:x.id||("app"+Date.now().toString(36)+i), name:String(x.name), desc:String(x.desc||""), url:x.url, icon:String(x.icon||""), slug:String(x.slug||"") }));
     Object.values(frames).forEach(f=>f.el.remove()); for (const k in frames) delete frames[k];
     save(); resetForm(); renderAdmin(); toast("ইমপোর্ট হয়েছে");
   } catch(err){ toast("ফাইলটি সঠিক নয়"); }
@@ -498,9 +532,18 @@ $("brandName").textContent = BRAND; $("brandMark").textContent = initial(BRAND);
 $("adminIcon").hidden = !SHOW_ADMIN_ICON;
 $("adminIcon").onclick = () => { location.hash = "admin"; };
 $("foot").textContent = FOOTER; document.title = BRAND;
-updPrev();
+updPrev(); updHint();
 history.replaceState({}, "");
 route();
+(function deepLink(){
+  if (isAdminHash()) return;
+  const h = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : "";
+  const want = relPath.split("/")[0] || h || new URLSearchParams(location.search).get("app") || "";
+  if (!want) return;
+  const a = findBySlug(want);
+  history.replaceState({}, "", BASE);
+  if (a) openApp(a.id, true); else toast("অ্যাপটি পাওয়া যায়নি");
+})();
 </script>
 </body>
 </html>
