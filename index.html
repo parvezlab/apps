@@ -200,8 +200,8 @@
             <small>ছবির লিংক (https://…/logo.png), Font Awesome ক্লাস, ইমোজি বা ১–২ অক্ষর দিতে পারেন। খালি রাখলে নামের প্রথম অক্ষর দেখাবে।</small>
             <input type="file" id="iconFile" accept="image/*" hidden>
           </div>
-          <label class="fld"><span>অ্যাপ লিংক</span><input id="fUrl" type="url" required placeholder="https://script.google.com/macros/s/…/exec">
-            <small>ওয়েব অ্যাপ ডিপ্লয়মেন্টের /exec লিংক দিন।</small></label>
+          <label class="fld"><span>অ্যাপ লিংক</span><input id="fUrl" type="text" inputmode="url" autocapitalize="none" required placeholder="https://script.google.com/macros/s/…/exec">
+            <small>Deploy → Manage deployments থেকে ওয়েব অ্যাপের /exec লিংক (বা শুধু Deployment ID) দিন। প্রজেক্ট ID নয়।</small></label>
           <div class="row" style="margin:0">
             <button class="btn pri" type="submit" id="fSave">যোগ করুন</button>
             <button class="btn" type="button" id="fCancel" hidden>বাতিল</button>
@@ -252,7 +252,7 @@ const BRAND = "Parvez Hub";
 const SHOW_ADMIN_ICON = true;
 /* সব ডিভাইসে একই তালিকা পেতে এখানে Google Apps Script ওয়েব অ্যাপের /exec লিংক দিন (Code.gs দেখুন)।
    খালি রাখলে তালিকা শুধু প্রতিটি ব্রাউজারে আলাদা সংরক্ষিত হবে। */
-const API_URL = "https://script.google.com/macros/s/AKfycbzYC_QXxq1AjK1wx2trZwXm-I5_j-KgBZghjppH9FX5rN2Cjlh090tXmWIh8YpdtWcv/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwHCA-lYSDPp8AICOIfH19rchUdqYIInmBMMwaOW9JWrXPeVNdYSEySTVPuteEKjQnX/exec";
 
 /* সাইটের পাথে কয়টি অংশ বেস হিসেবে ধরা হবে। parvezlab.github.io/apps/ → 1,
    নিজস্ব ডোমেইনের রুটে (example.com/) রাখলে → 0। 404.html-এও একই মান দিন। */
@@ -505,6 +505,25 @@ function startEdit(id){ const a = apps.find(x=>x.id===id); if (!a) return; editI
   $("fName").value=a.name; $("fDesc").value=a.desc||""; $("fUrl").value=a.url; $("fIcon").value=a.icon||""; $("fSlug").value=a.slug||""; updPrev(); updHint();
   $("formTitle").textContent="অ্যাপ সম্পাদনা"; $("fSave").textContent="সংরক্ষণ করুন"; $("fCancel").hidden=false; $("fName").focus(); window.scrollTo(0,0); $("admin").scrollTo(0,0); }
 function resetForm(){ editId=null; $("appForm").reset(); updPrev(); updHint(); $("formTitle").textContent="নতুন অ্যাপ যোগ করুন"; $("fSave").textContent="যোগ করুন"; $("fCancel").hidden=true; }
+function normUrl(v){
+  v = String(v||"").trim();
+  if (/^AKfycb[\w-]{20,}$/.test(v)) return "https://script.google.com/macros/s/" + v + "/exec";
+  return v;
+}
+function urlProblem(u){
+  let x; try { x = new URL(u); } catch(e){ return "লিংকটি সঠিক নয়।"; }
+  if (x.hostname === "drive.google.com" || x.hostname === "docs.google.com")
+    return "এটা Drive/Docs-এর লিংক, ওয়েব অ্যাপের নয়। Apps Script থেকে Deploy → Manage deployments খুলে ওয়েব অ্যাপের /exec লিংক নিন।";
+  if (x.hostname === "script.google.com"){
+    if (/\/(d|home\/projects)\//.test(x.pathname))
+      return "এটা Apps Script প্রজেক্টের লিংক বা প্রজেক্ট ID। অ্যাপ চালাতে ডিপ্লয়মেন্টের লিংক লাগে: Deploy → Manage deployments → Web app URL (…/macros/s/AKfycb…/exec)।";
+    if (/\/dev$/.test(x.pathname))
+      return "/dev লিংক শুধু আপনি নিজে খুলতে পারেন। অন্যদের জন্য /exec লিংক দিন।";
+    if (!/\/macros\/(a\/[^/]+\/)?s\/[^/]+\/exec$/.test(x.pathname))
+      return "লিংকটি …/macros/s/…/exec ধাঁচের হতে হবে।";
+  }
+  return "";
+}
 function updHint(){
   const k = slugify($("fSlug").value) || slugify($("fName").value) || "…";
   $("fSlugHint").textContent = location.host + BASE + k;
@@ -538,13 +557,14 @@ $("iconFile").onchange = e => {
 $("fCancel").onclick = resetForm;
 $("appForm").onsubmit = e => {
   e.preventDefault();
-  const name = $("fName").value.trim(), desc = $("fDesc").value.trim(), url = $("fUrl").value.trim(), icon = $("fIcon").value.trim();
+  const name = $("fName").value.trim(), desc = $("fDesc").value.trim(), url = normUrl($("fUrl").value), icon = $("fIcon").value.trim();
   const before = editId ? apps.find(x=>x.id===editId) : null;
   const slug = slugify($("fSlug").value) || (before ? slugOf(before) : slugify(name)) || "app";
   if (slug === "admin"){ toast("\"admin\" নামটি সংরক্ষিত"); return; }
   if (apps.some(x => x.id !== editId && slugOf(x) === slug)){ toast("এই লিংকের নাম আগে থেকেই আছে"); return; }
   if (icon.length > 45000){ toast("আইকন ছবিটি অনেক বড়"); return; }
   if (!/^https:\/\//i.test(url)){ toast("লিংক https:// দিয়ে শুরু হতে হবে"); return; }
+  const bad = urlProblem(url); if (bad){ alert(bad); return; }
   if (editId){
     const a = apps.find(x=>x.id===editId);
     if (a.url !== url && frames[a.id]){ frames[a.id].el.remove(); delete frames[a.id]; }
