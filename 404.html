@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>লোড হচ্ছে…</title>
+  <script>
+    /* এই ফাইলটি index.html-এর পাশে (একই ফোল্ডারে) রাখুন।
+       অচেনা পাথ (যেমন /apps/CoopSync) এখান থেকে index.html-এ পাঠানো হয়। */
+    var pathSegmentsToKeep = 1;   /* index.html-এর PATH_SEGMENTS-এর সমান */
+    var l = window.location;
+    l.replace(
+      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+      l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+      l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+      (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+      l.hash
+    );
+  </script>
+</head>
+<body></body>
+</html>
